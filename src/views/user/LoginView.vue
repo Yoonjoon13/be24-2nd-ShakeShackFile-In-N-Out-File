@@ -99,7 +99,7 @@ const loginWithGoogle = () => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
 
   const options = {
-    redirect_uri: 'http://localhost:8080/social/google/redirect', // 
+    redirect_uri: 'http://localhost:8080/user/login/google', // 
     client_id: '1031907691272-etjaj9l0qqks3e6m7ilfggrqnkcsmkq4.apps.googleusercontent.com',
     access_type: 'offline',
     response_type: 'code',
@@ -119,7 +119,7 @@ const loginWithGoogle = () => {
 const loginWithNaver = () => {
   // 네이버 OAuth 2.0 인증 URL로 리다이렉트
   const clientId = 'lIxOu6DHI7mzY1P1JP4C'; // 네이버 개발자센터에서 발급
-  const redirectUri = encodeURIComponent('http://localhost:8080/social/naver/redirect');
+  const redirectUri = encodeURIComponent('http://localhost:8080/user/login/naver');
   const state = Math.random().toString(36).substring(2, 15); // CSRF 방지용 state
 
   const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
@@ -130,7 +130,7 @@ const loginWithNaver = () => {
 const loginWithKakao = () => {
   // 카카오 OAuth 2.0 인증 URL로 리다이렉트
   const clientId = '6e40349b2788a61f1c0988accc86daf1'; // 기존 카카오 REST API 키
-  const redirectUri = encodeURIComponent('http://localhost:8080/social/kakao/redirect');
+  const redirectUri = encodeURIComponent('http://localhost:8080/user/login/kakao');
 
   const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code`;
 
