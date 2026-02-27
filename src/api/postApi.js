@@ -1,11 +1,13 @@
-import postApi from '@/plugins/axiosinterceptor'
-
-const posts = postApi.postApi
+import { api } from '@/plugins/axiosinterceptor'
 
 // 게시글 저장 / 불러오기 / 모두 불러오기
-const savePost = async (postData) => {
+const savePost = async (postData, token) => {
   try {
-    const post = await posts.post('user/posts', postData)
+    const post = await api.post('/editor/save', postData, {
+      headers: {
+            'Authorization': `Bearer ${token}`
+      }
+    })
     console.log(post)
     return post
   } catch (error) {
@@ -13,20 +15,28 @@ const savePost = async (postData) => {
     return error
   }
 }
-const getPost = async (idx) => {
+const getPost = async (idx, token) => {
   try {
-    const post = await posts.get(`user/posts/${idx}`)
-    console.log(api)
+    const post = await api.get(`/editor/read/${idx}`, {
+      headers: {
+            'Authorization': `Bearer ${token}`
+      }
+    })
+    console.log(post)
     return post
   } catch (error) {
     console.log(error)
     return error
   }
 }
-const allPosts = async () => {
+const allPosts = async (token) => {
   try {
-    const post = await posts.get('user/posts')
-    console.log(api)
+    const post = await api.get('/editor/list', {
+      headers: {
+            'Authorization': `Bearer ${token}`
+      }
+    })
+    console.log(post)
     return post
   } catch (error) {
     console.log(error)
