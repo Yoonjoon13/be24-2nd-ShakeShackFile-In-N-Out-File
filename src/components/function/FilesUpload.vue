@@ -24,7 +24,7 @@
         </div>
 
         <div class="absolute left-full top-0 ml-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl hidden group-hover/sub:block">
-          <RouterLink :to="{ name: 'editor' }" >
+          <RouterLink :to="{ name: 'workspace' }" >
           <div class="px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer rounded-t-xl text-gray-200">파일 생성하기</div></RouterLink>
           <div @click="createNewFolder" class="px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer rounded-b-xl text-gray-200">폴더 생성하기</div>
         </div>

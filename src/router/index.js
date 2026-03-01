@@ -72,9 +72,9 @@ const router = createRouter({
           meta: { title: '저장용량', requiresAuth: true },
         },
         { 
-          path: 'editor', 
-          name: 'editor',
-          component: () => import('../views/EditorView.vue'),
+          path: 'workspace', 
+          name: 'workspace',
+          component: () => import('../views/WorkSpace.vue'),
           meta: { title: '에디터', requiresAuth: true }
         },
         // /main/* 하위의 잘못된 경로도 404로 보내기
@@ -112,17 +112,17 @@ router.beforeEach((to, from, next) => {
 
   document.title = to.meta.title || 'FileInNOut'
 
-  if (to.meta.requiresAuth) {
-    const userInfo = localStorage.getItem('USERINFO')
-    // 쿠키가 존재하는지 확인하는 로직 추가
-    const hasToken = document.cookie.includes('ATOKEN')
+  // if (to.meta.requiresAuth) {
+  //   const userInfo = localStorage.getItem('USERINFO')
+  //   // 쿠키가 존재하는지 확인하는 로직 추가
+  //   const hasToken = document.cookie.includes('ATOKEN')
 
-    // 정보도 없고, 쿠키도 없다면 그때만 로그인으로 보냄
-    if (userInfo === null && !hasToken) {
-      next({ name: 'login' })
-      return
-    }
-  }
+  //   // 정보도 없고, 쿠키도 없다면 그때만 로그인으로 보냄
+  //   if (userInfo === null && !hasToken) {
+  //     next({ name: 'login' })
+  //     return
+  //   }
+  // }
   next() 
 })
 
