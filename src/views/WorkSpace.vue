@@ -1,124 +1,202 @@
 <script setup>
-import { onMounted } from 'vue'
-import { BubbleMenu, FloatingMenu } from '@tiptap/vue-3'
-import { useEditorSocket, save } from '@/components/editor' 
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { initEditor } from '@/components/editor' // logic file
 
-const { initEditor, title, remoteMice, editor } = useEditorSocket()
-const { isFormValid, savePost } = save()
+// 로컬 상태
+const editorHolder = ref(null)
+const editorApi = ref(null)
+const title = ref('')
+const remoteCursors = ref({})
 
-onMounted(() => {
-  initEditor('#editor')
+// 편의 computed
+const isValid = computed(() => title.value.trim().length > 0)
+
+// 저장 핸들러
+async function handleSave() {
+  if (!editorApi.value?.savePost) return
+  await editorApi.value.savePost()
+}
+
+/** 다크모드 로직 **/
+const isDarkMode = ref(false)
+
+const applyTheme = (isDark) => {
+  if (isDark) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('theme', 'dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('theme', 'light')
+  }
+}
+// 1. 이 watch 로직을 추가하세요.
+watch(title, (newVal) => {
+  if (editorApi.value?.__updateOnLocal) {
+    // bindTitleRef에서 주입한 헬퍼 함수를 사용하여 Yjs 데이터 업데이트
+    editorApi.value.__updateOnLocal(newVal)
+  } else if (editorApi.value?.updateTitleFromLocal) {
+    // 또는 명시적인 헬퍼 함수 사용
+    editorApi.value.updateTitleFromLocal(newVal)
+  }
+})
+
+onMounted(async () => {
+  // 초기 테마 설정 확인
+  const savedTheme = localStorage.getItem('theme')
+  isDarkMode.value = savedTheme === 'dark' || 
+    (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  
+  applyTheme(isDarkMode.value)
+
+  // 에디터 초기화
+  editorApi.value = await initEditor(editorHolder.value, 'notion-room')
+
+  if (editorApi.value?.bindTitleRef) {
+    editorApi.value.bindTitleRef(title)
+  }
+
+  if (editorApi.value?.remoteCursorsRef) {
+    remoteCursors.value = editorApi.value.remoteCursorsRef.value
+  }
+})
+
+onBeforeUnmount(() => {
+  if (editorApi.value?.destroy) editorApi.value.destroy()
 })
 </script>
 
 <template>
-  <div class="flex flex-col h-screen max-w-4xl mx-auto p-6 bg-white overflow-hidden">
-    
-    <div class="flex items-end justify-between border-b border-gray-200 pb-2 mb-4 shrink-0">
-      <input
-        v-model="title"
-        type="text"
-        placeholder="제목을 입력하세요"
-        class="w-full text-4xl font-bold outline-none placeholder:text-gray-300 bg-transparent text-gray-900"
-      />
-      <button
-        :disabled="!isFormValid"
-        @click="savePost()"
-        class="ml-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md disabled:bg-gray-300 disabled:cursor-not-allowed shrink-0"
-      >
-        저장하기
-      </button>
+  <div class="editor-shell">
+    <div class="editor-header">
+      <input v-model="title" placeholder="제목 없음" class="title-input" />
+
+      <button :disabled="!isValid" @click="handleSave" class="save-btn">저장</button>
     </div>
 
-    <div class="flex-1 relative overflow-y-auto">
-      
-      <bubble-menu 
-        v-if="editor" 
-        :editor="editor" 
-        :tippy-options="{ duration: 100, zIndex: 99 }"
-        class="notion-menu"
-      >
-        <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'active': editor.isActive('bold') }">B</button>
-        <button @click="editor.chain().focus().toggleItalic().run()" :class="{ 'active': editor.isActive('italic') }">I</button>
-        <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'active': editor.isActive('strike') }">S</button>
-      </bubble-menu>
+    <div class="editor-body">
+      <div ref="editorHolder" id="editor-holder" class="editor-holder"></div>
 
-      <floating-menu 
-        v-if="editor" 
-        :editor="editor" 
-        :tippy-options="{ duration: 100, zIndex: 99 }"
-        class="notion-menu"
-      >
-        <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'active': editor.isActive('heading', { level: 1 }) }">H1</button>
-        <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'active': editor.isActive('heading', { level: 2 }) }">H2</button>
-        <button @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'active': editor.isActive('bulletList') }">List</button>
-      </floating-menu>
-
-      <div id="editor" class="h-full"></div>
+      <div class="cursors-overlay" aria-hidden>
+        <div
+          v-for="(c, id) in remoteCursors"
+          :key="id"
+          class="remote-cursor"
+          :style="c.style"
+        >
+          <div class="cursor-dot" :style="{ background: c.color }"></div>
+          <div class="cursor-label" :style="{ background: c.color }">{{ c.name }}</div>
+        </div>
+      </div>
     </div>
-  </div>
-
-  <div v-for="(mouse, id) in remoteMice" :key="id" class="mouse" :style="{ left: mouse.left + 'px', top: mouse.top + 'px', '--mouse-color': mouse.color }">
-    <svg class="mouse-pointer" viewBox="0 0 24 24" width="24" height="24" fill="none"><path d="M5.65376 12.3673H5.46026L5.31717 12.4976L0.500002 16.8829L0.500002 1.19011L11.7116 12.3673H5.65376Z" fill="var(--mouse-color)" stroke="white" stroke-width="1"/></svg>
-    <div class="mouse-name">{{ mouse.name }}</div>
   </div>
 </template>
 
 <style scoped>
-/* 노션 스타일 플로팅 메뉴 디자인 */
-.notion-menu {
-  display: flex;
-  background-color: #ffffff;
-  padding: 4px;
-  border-radius: 6px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15); /* 부드러운 그림자 */
-  border: 1px solid #e2e8f0;
-  gap: 2px;
+/* 테마 변수 설정 */
+:root {
+  --editor-bg: #ffffff;
+  --editor-text: #1f2937;
+  --editor-border: #f0f0f0;
+  --editor-input-bg: #ffffff;
 }
 
-.notion-menu button {
+:global(html.dark) {
+  --editor-bg: #1e1e1e;
+  --editor-text: #e5e7eb;
+  --editor-border: #333333;
+  --editor-input-bg: #2d2d2d;
+}
+
+.editor-shell {
+  max-width: 900px;
+  margin: 24px auto;
+  background: var(--editor-bg); /* 변수 적용 */
+  color: var(--editor-text);   /* 변수 적용 */
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  overflow: hidden;
+  transition: background 0.3s, color 0.3s;
+}
+
+.editor-header {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  padding:20px;
+  border-bottom:1px solid var(--editor-border);
+}
+
+.title-input {
+  flex:1;
+  font-size:20px;
+  padding:8px 12px;
+  border-radius:6px;
+  border:1px solid var(--editor-border);
+  background: var(--editor-input-bg);
+  color: var(--editor-text);
+}
+
+.theme-toggle-btn {
   background: none;
-  border: none;
-  padding: 4px 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #4a5568;
+  border: 1px solid var(--editor-border);
+  padding: 8px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
+  color: var(--editor-text);
 }
 
-.notion-menu button:hover {
-  background-color: #f7fafc;
+.save-btn {
+  padding:8px 12px;
+  background:#2563eb;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
+  border: none;
 }
 
-.notion-menu button.active {
-  color: #3182ce;
-  background-color: #ebf8ff;
+.editor-body {
+  position:relative;
+  min-height:60vh;
+  padding:20px;
 }
 
-/* 에디터 내부 여백 및 높이 */
-#editor {
-  min-height: 100%;
+.editor-holder {
+  min-height:48vh;
+  border-radius:8px;
+  border:1px solid var(--editor-border);
+  padding:18px;
+  font-size:16px;
+  background: var(--editor-bg);
 }
 
-:deep(.tiptap) {
-  min-height: 500px;
-  outline: none;
-  padding: 10px 0;
-  color: #1a202c;
+/* Editor.js 다크모드 대응 UI 스타일링 */
+:deep(.ce-block) { color: var(--editor-text); }
+:deep(.ce-toolbar__content), :deep(.ce-toolbar__actions) { color: var(--editor-text); }
+:deep(.ce-popover), :deep(.ce-inline-toolbar), :deep(.ce-settings) {
+  background: var(--editor-input-bg) !important;
+  border: 1px solid var(--editor-border);
+  color: var(--editor-text);
 }
-
-/* Placeholder 스타일 */
-:deep(.tiptap p.is-editor-empty:first-child::before) {
-  content: attr(data-placeholder);
-  float: left;
-  color: #cbd5e0;
-  pointer-events: none;
-  height: 0;
+:deep(.ce-popover__item-icon), :deep(.ce-popover__item-label), :deep(.ce-inline-tool) {
+  color: var(--editor-text) !important;
 }
+:deep(.ce-popover__item:hover), :deep(.ce-inline-tool:hover) {
+  background: rgba(128, 128, 128, 0.2) !important;
+}
+:deep(.codex-editor__redactor) { caret-color: var(--editor-text); }
 
-.mouse { position: fixed; pointer-events: none; z-index: 10000; transition: all 0.1s ease-out; will-change: left, top; }
-.mouse-pointer { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); }
-.mouse-name { position: absolute; top: 18px; left: 10px; background-color: var(--mouse-color); color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+/* Cursor overlay */
+.cursors-overlay { position:absolute; left:0; top:0; right:0; bottom:0; pointer-events:none; }
+.remote-cursor { position:fixed; display:flex; align-items:center; gap:8px; z-index:9999; transform:translate(-50%, -120%); }
+.cursor-dot { width:12px; height:12px; border-radius:50%; box-shadow:0 0 0 3px rgba(255,255,255,0.6); }
+.cursor-label { color:white; font-size:12px; padding:4px 8px; border-radius:6px; }
+
+/* Font size styles */
+:deep(.ce-block h1), :deep(.ce-block .ce-header[data-level="1"]) { font-size: 40px !important; font-weight: 700 !important; }
+:deep(.ce-block h2), :deep(.ce-block .ce-header[data-level="2"]) { font-size: 32px !important; font-weight: 600 !important; }
+:deep(.ce-block h3), :deep(.ce-block .ce-header[data-level="3"]) { font-size: 24px !important; font-weight: 600 !important; }
+
+/* alignment support */
+:deep(.ce-block[data-align="center"]) { text-align: center; }
+:deep(.ce-block[data-align="right"])  { text-align: right; }
 </style>
