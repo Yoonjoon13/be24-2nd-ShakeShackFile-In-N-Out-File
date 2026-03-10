@@ -45,6 +45,6 @@ export function uploadFiles(files) {
 
 export function completePartitionUpload(payload) {
   return api.post("/file/upload/complete", payload, {
-    timeout: 6000000,
+    timeout: 600000,
   });
 }

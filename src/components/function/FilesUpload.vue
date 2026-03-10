@@ -149,11 +149,29 @@ const getFileFormat = (file) => {
 
 const uploadToPresignedUrl = async (
   payload,
-  presignedUploadUrl,
+  uploadMeta,
+  fileName,
   contentType = "application/octet-stream",
 ) => {
+  const presignedUploadUrl = uploadMeta?.presignedUploadUrl
   if (!presignedUploadUrl) {
     throw new Error("업로드 URL이 없습니다.")
+  }
+
+  const presignedFormData = uploadMeta?.presignedFormData
+  if (presignedFormData && typeof presignedFormData === "object") {
+    const formData = new FormData()
+
+    Object.entries(presignedFormData).forEach(([key, value]) => {
+      formData.append(key, value)
+    })
+    if (!presignedFormData.key && uploadMeta?.objectKey) {
+      formData.append("key", uploadMeta.objectKey)
+    }
+    formData.append("file", payload, fileName || "upload.bin")
+
+    await axios.post(presignedUploadUrl, formData)
+    return
   }
 
   await axios.put(presignedUploadUrl, payload, {
@@ -179,7 +197,7 @@ const uploadFileByChunks = async (file, uploadMetas) => {
   }
 
   if (expectedUploadCount === 1) {
-    await uploadToPresignedUrl(file, uploadMetas[0]?.presignedUploadUrl, file.type)
+    await uploadToPresignedUrl(file, uploadMetas[0], file.name, file.type)
     return
   }
 
@@ -190,7 +208,8 @@ const uploadFileByChunks = async (file, uploadMetas) => {
 
     await uploadToPresignedUrl(
       chunkBlob,
-      uploadMetas[chunkIndex]?.presignedUploadUrl,
+      uploadMetas[chunkIndex],
+      `${file.name}.part${String(chunkIndex + 1).padStart(5, "0")}`,
       file.type,
     )
   }
