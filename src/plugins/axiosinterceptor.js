@@ -47,7 +47,7 @@ api.interceptors.response.use(
       try {
         // 백엔드의 재발급 API 호출 (withCredentials 덕분에 HttpOnly 쿠키가 자동 전송됨)
         // 무한 루프를 막기 위해 api 인스턴스 대신 순수 axios 사용
-        const res = await axios.post('/api/auth/reissue', {}, { 
+        const res = await axios.post('/auth/reissue', {}, { 
           baseURL: '', // 프록시 설정을 타도록 빈 값 또는 환경변수 설정
           withCredentials: true 
         })
